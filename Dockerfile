@@ -1,6 +1,9 @@
 FROM janeczku/alpine-kubernetes:3.2
 
-RUN apk --update add rsyslog bash openjdk7 make wget
+# add testing repo
+RUN sh -c "echo '@testing http://nl.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories"
+
+RUN apk --update add rsyslog bash openjdk7 make wget gnuplot@testing
 
 RUN apk --update add --virtual builddeps build-base autoconf automake git python
 
