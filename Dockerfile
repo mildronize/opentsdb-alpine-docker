@@ -55,3 +55,4 @@ RUN ln -s /opt/bin/start_opentsdb.sh /etc/services.d/tsdb/run
 EXPOSE 60000 60010 60030 4242 16010
 
 VOLUME ["/data/hbase"]
+WORKDIR /opt/opentsdb/opentsdb-${TSDB_VERSION}/build
