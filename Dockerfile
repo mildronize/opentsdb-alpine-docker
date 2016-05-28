@@ -1,5 +1,11 @@
 FROM janeczku/alpine-kubernetes:3.2
 
+ENV TIMEZONE Asia/Bangkok
+
+# Set up timezone
+RUN apk add --update tzdata
+RUN cp /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+RUN echo "${TIMEZONE}" > /etc/timezone
 # add testing repo
 RUN sh -c "echo '@testing http://nl.alpinelinux.org/alpine/edge/testing' >> /etc/apk/repositories"
 
@@ -55,4 +61,8 @@ RUN ln -s /opt/bin/start_opentsdb.sh /etc/services.d/tsdb/run
 EXPOSE 60000 60010 60030 4242 16010
 
 VOLUME ["/data/hbase"]
+# add config of opentsdb
+ADD docker/opentsdb.conf /opt/opentsdb/
+
 WORKDIR /opt/opentsdb/opentsdb-${TSDB_VERSION}/build
+
