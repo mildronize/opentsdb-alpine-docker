@@ -1,0 +1,20 @@
+#!/bin/bash
+# Suites
+- Show DPS and errors
+    echo $RANDOM | read ran; echo /tmp/opentsdb-$ran |
+    read filename; docker exec -it opentsdb ./tsdb fsck --full-scan --threads=8 > $filename; echo $filename
+
+    | awk '/Valid Datapoints/ {print $8}' | tr -d '\r' | read num; echo "$num / 8" | bc | read num; printf "%'.d dps\n" $num
+    | awk '/Total Errors:/ {print $8}' | tr -d '\r' | read num; printf "%'.d dps\n" $num
+
+# Docker with opentsdb
+
+- Count number of data points
+    docker exec -it opentsdb ./tsdb fsck --full-scan --threads=8 | awk '/Valid Datapoints/ {print $8}' | tr -d '\r' | read num; echo "$num / 8" | bc | read num; printf "%'.d dps\n" $num
+
+- Count Errors
+    awk '/Total Errors:/ {print $8}' | tr -d '\r' | read num; printf "%'.d dps\n" $num
+
+# Utils
+- create temp file and return file name
+    echo $RANDOM | read ran; echo '$ran' > /tmp/opentsdb-$ran; echo /tmp/opentsdb-$ran

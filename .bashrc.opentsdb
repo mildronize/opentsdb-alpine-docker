@@ -1,0 +1,55 @@
+#!/bin/bash
+
+CONTAINER_NAME="opentsdb"
+LOG_PATH="./logs"
+TSDB_CLI_PATH="./tsdb"
+
+function tsdb_mkmetric {
+    metric_name=$1
+    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH mkmetric $metric_name
+}
+
+function tsdb_import {
+    import_file=$1
+    id=$2
+    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH import ./generated-dps/$import_file 1> $LOG_PATH/$id.import 2> $LOG_PATH/$id.import.err
+    cat $LOG_PATH/$id.import | grep 'tsd\.' > $id.import.stat
+}
+
+function tsdb_count {
+    # Count DPS and errors
+    id=$1
+    mkdir -p $LOG_PATH
+    tsdb_counting $LOG_PATH/$id
+    tsdb_count_dps $LOG_PATH/$id
+    tsdb_count_errors $LOG_PATH/$id
+}
+
+function tsdb_counting_tmp {
+    bash -c 'echo $RANDOM' | read ran; echo /tmp/opentsdb-$ran |
+    read filename; \
+        docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH fsck --full-scan --threads=8 > $filename; \
+        echo $filename;
+}
+
+function tsdb_counting {
+    id=$1
+    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH fsck --full-scan --threads=8 > $id.fsck ; \
+}
+
+function tsdb_count_dps {
+    id=$1
+    cat $id.fsck |
+    awk '/Valid Datapoints/ {print $8}' |
+    tr -d '\r' |
+    read num; echo "$num / 8" | bc |
+    read num; printf "Total dps   : %'.d dps\n" $num
+}
+
+function tsdb_count_errors {
+    id=$1
+    cat $id.fsck |
+    awk '/Total Errors:/ {print $8}' |
+    tr -d '\r' |
+    read num; printf "Total Errors: %'.d dps\n" $num
+}
