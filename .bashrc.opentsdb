@@ -4,25 +4,38 @@ CONTAINER_NAME="opentsdb"
 LOG_PATH="./logs"
 TSDB_CLI_PATH="./tsdb"
 
+START_TIME="2000/01/01-00:00:00"
+
+mkdir -p $LOG_PATH
+
+function tsdb_run_test {
+    id=$1
+    nthread=$2
+    tsdb_import $id dps-$id && \
+        tsdb_count $id $nthread
+    du -s /home/mildronize/gits/csv-to-opentsdb/generated-dps/dps-$id
+    du -s /home/mildronize/external/hbase
+}
+
 function tsdb_mkmetric {
     metric_name=$1
     docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH mkmetric $metric_name
 }
 
 function tsdb_import {
-    import_file=$1
-    id=$2
+    id=$1
+    import_file=$2
     docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH import ./generated-dps/$import_file 1> $LOG_PATH/$id.import 2> $LOG_PATH/$id.import.err
-    cat $LOG_PATH/$id.import | grep 'tsd\.' > $id.import.stat
+    cat $LOG_PATH/$id.import | awk '/tsd\./ {print}' > $LOG_PATH/$id.import.stat
 }
 
 function tsdb_count {
     # Count DPS and errors
     id=$1
-    mkdir -p $LOG_PATH
-    tsdb_counting $LOG_PATH/$id
-    tsdb_count_dps $LOG_PATH/$id
-    tsdb_count_errors $LOG_PATH/$id
+    nthread=$2
+    tsdb_counting $id $nthread
+    tsdb_count_dps $id $nthread
+    tsdb_count_errors $id
 }
 
 function tsdb_counting_tmp {
@@ -34,22 +47,28 @@ function tsdb_counting_tmp {
 
 function tsdb_counting {
     id=$1
-    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH fsck --full-scan --threads=8 > $id.fsck ; \
+    nthread=$2
+    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH fsck --full-scan --threads=$nthread > $LOG_PATH/$id.fsck ;
 }
 
 function tsdb_count_dps {
     id=$1
-    cat $id.fsck |
+    nthread=$2
+    cat $LOG_PATH/$id.fsck |
     awk '/Valid Datapoints/ {print $8}' |
     tr -d '\r' |
-    read num; echo "$num / 8" | bc |
-    read num; printf "Total dps   : %'.d dps\n" $num
+    read num; echo "$num / $nthread" | bc |
+    read num; printf "Total dps(fsck): %d dps\n" $num
+
+    docker exec -it $CONTAINER_NAME $TSDB_CLI_PATH scan --import $START_TIME sum level |
+    grep 'location=hatyai' | wc -l |
+    read num; printf "Total dps(scan): %d dps\n" $num
 }
 
 function tsdb_count_errors {
     id=$1
-    cat $id.fsck |
+    cat $LOG_PATH/$id.fsck |
     awk '/Total Errors:/ {print $8}' |
     tr -d '\r' |
-    read num; printf "Total Errors: %'.d dps\n" $num
+    read num; printf "Total Errors   : %d dps\n" $num
 }
