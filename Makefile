@@ -4,14 +4,18 @@ restore_path := $(HOME)/external
 container_name := opentsdb
 
 # START
+start:
+	docker start $(container_name)
 
-start: up load_dps
+stop:
+	docker stop $(container_name)
 
 up:
 	docker-compose up -d
 
 load_dps:
 	docker cp $(HOME)/external/logs/generated-dps opentsdb:/opt/opentsdb/opentsdb-2.2.0/build
+
 
 make_metric:
 	docker exec -it $(container_name) ./tsdb mkmetric level
@@ -38,3 +42,9 @@ restore:
 
 not_create_table:
 	docker exec -it $(container_name) touch /opt/opentsdb_tables_created.txt
+
+# Command Suite
+# Restart with fresh data
+restart_w_restore: stop restore start
+
+start_w_restore: down restore up not_create_table
